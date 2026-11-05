@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Restzeit – Gehzeit-Rechner</title>
+<style>
+:root{
+  --bg:#f4f1ea;--card:#fff;--text:#1d1b16;--muted:#6b665a;--line:#ddd7c8;--input:#fbfaf6;
+  --mt:#f2c200;--mt-soft:#fff4c2;--fr:#f08a00;--fr-soft:#ffe2b8;--bad:#c62828;--good:#2e7d32;
+}
+:root[data-theme="dark"]{
+  --bg:#15140f;--card:#201f18;--text:#f1ede2;--muted:#a49f90;--line:#3a3829;--input:#191812;
+  --mt:#e0b400;--mt-soft:#3b3300;--fr:#ff9a1f;--fr-soft:#412500;--bad:#ef6a6a;--good:#6fcf76;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow-x:hidden}
+body[data-day="mt"]{--accent:var(--mt);--soft:var(--mt-soft)}
+body[data-day="fr"]{--accent:var(--fr);--soft:var(--fr-soft)}
+main{max-width:560px;margin:0 auto;padding:12px 14px 40px}
+header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+h1{font-size:18px;margin:0}
+button,summary{font:inherit}
+.iconbtn{background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:6px 10px;cursor:pointer}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px}
+.seg button{padding:10px;border-radius:12px;border:2px solid var(--line);background:var(--card);color:var(--text);font-weight:600;cursor:pointer}
+.seg button[aria-pressed="true"]{border-color:transparent;color:#1d1b16}
+.seg button[data-d="mt"][aria-pressed="true"]{background:var(--mt)}
+.seg button[data-d="fr"][aria-pressed="true"]{background:var(--fr)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px}
+.hero{background:var(--soft);border-color:var(--accent)}
+.lbl{font-size:13px;color:var(--muted)}
+.big{font-size:56px;font-weight:700;line-height:1.05;font-variant-numeric:tabular-nums}
+.way{font-size:14px;color:var(--muted);margin-top:4px;word-break:break-word}
+.row{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.mid{font-size:30px;font-weight:700;font-variant-numeric:tabular-nums}
+.bar{height:12px;border-radius:8px;background:var(--line);overflow:hidden;margin-top:10px}
+.bar>i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+.pos{color:var(--good)}.neg{color:var(--bad)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.field label{display:block;font-size:13px;color:var(--muted);margin-bottom:3px}
+input.t{width:100%;font:inherit;font-size:22px;font-variant-numeric:tabular-nums;text-align:center;padding:10px 6px;border-radius:10px;border:2px solid var(--line);background:var(--input);color:var(--text)}
+input.t:focus{outline:none;border-color:var(--accent)}
+input.t.bad{border-color:var(--bad)}
+input.t.ex{font-style:italic;color:var(--muted)}
+.exnote{display:none;font-size:13px;background:var(--soft);border:1px dashed var(--accent);border-radius:10px;padding:8px 10px;margin-bottom:10px}
+.exnote.on{display:block}
+details summary{cursor:pointer;font-weight:600}
+details .grid{margin-top:10px}
+.actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.hint{font-size:12px;color:var(--muted);margin-top:8px}
+[hidden]{display:none!important}
+@media(max-width:380px){.big{font-size:46px}}
+</style>
+</head>
+<body data-day="mt">
+<main>
+  <header>
+    <h1>Restzeit</h1>
+    <button class="iconbtn" id="themeBtn" type="button" title="Hell/Dunkel">◐</button>
+  </header>
+
+  <div class="seg" role="group" aria-label="Wochentag">
+    <button type="button" data-d="mt" aria-pressed="true">Mo–Do</button>
+    <button type="button" data-d="fr" aria-pressed="false">Freitag</button>
+  </div>
+
+  <section class="card hero">
+    <div class="lbl">Geht-Zeit</div>
+    <div class="big" id="gehtZeit">--:--</div>
+    <div class="way" id="way">Kommt eintragen</div>
+  </section>
+
+  <section class="card">
+    <div class="row">
+      <div><div class="lbl" id="istLbl">Istzeit</div><div class="mid" id="ist">–</div></div>
+      <div style="text-align:right"><div class="lbl">Soll</div><div class="mid" id="soll">–</div></div>
+    </div>
+    <div class="bar"><i id="bar"></i></div>
+  </section>
+
+  <section class="card">
+    <div class="lbl" id="ueLbl">Überzeit</div>
+    <div class="row">
+      <div class="mid" id="ueMin">–</div>
+      <div class="mid" id="ueH">–</div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="exnote" id="exnote">Beispielwerte – einfach überschreiben. <a href="#" id="exClear">Beispiel löschen</a></div>
+    <div class="grid" id="fields"></div>
+    <div class="hint">Eingabe wie in Excel: <b>0652</b>, <b>652</b>, <b>6:52</b> oder <b>16</b>.</div>
+    <div class="actions"><button class="iconbtn" id="clearDay" type="button">Tag leeren</button></div>
+  </section>
+
+  <details class="card">
+    <summary>Zeiten anpassen</summary>
+    <div class="grid" id="settings"></div>
+    <div class="actions"><button class="iconbtn" id="defaults" type="button">Standardwerte</button></div>
+  </details>
+</main>
+
+<script>
+(function(){
+"use strict";
+var KEY="restzeit.v1";
+var DEFAULTS={arbeitMT:504,arbeitFR:294,einarbeit:6,pause:15,mittag:30}; // Minuten
+var FIELDS={
+  mt:[["kommt","Kommt"],["gm","Geht Mittag"],["km","Kommt Mittag"],["gw","Geht wirklich"]],
+  fr:[["kommt","Kommt"],["gw","Geht wirklich"]]
+};
+var SETS=[["arbeitMT","Arbeitszeit Mo–Do"],["arbeitFR","Arbeitszeit Freitag"],["einarbeit","Einarbeit"],["pause","Pause"],["mittag","Mittagspause min."]];
+var EXAMPLE={mt:{kommt:412,gm:705,km:740,gw:null},fr:{kommt:420,gw:null}};
+
+function load(){
+  try{var s=JSON.parse(localStorage.getItem(KEY));if(s&&s.mt&&s.fr&&s.set)return s;}catch(e){}
+  return {mt:clone(EXAMPLE.mt),fr:clone(EXAMPLE.fr),set:clone(DEFAULTS),example:true,theme:null};
+}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(st));}catch(e){}}
+function clone(o){return JSON.parse(JSON.stringify(o));}
+var st=load();
+var day=(new Date().getDay()===5)?"fr":"mt";
+
+/* ---------- Zeit-Parsing ---------- */
+function parse(str){ // -> minutes | null (leer) | NaN (ungültig)
+  str=String(str||"").trim();
+  if(!str)return null;
+  var h,m,mm;
+  if((mm=/^(\d{1,2})[:.,](\d{1,2})$/.exec(str))){h=+mm[1];m=+mm[2];}
+  else if(/^\d{1,4}$/.test(str)){
+    if(str.length<=2){h=+str;m=0;}
+    else{h=+str.slice(0,str.length-2);m=+str.slice(-2);}
+  }else return NaN;
+  if(h>23||m>59)return NaN;
+  return h*60+m;
+}
+function parseDur(str,hoursIfShort){ // Dauer: "8:24", "824", "30" (Min.) bzw. "8" (Std. bei Arbeitszeit)
+  str=String(str||"").trim();
+  if(!str)return null;
+  if(/^\d{1,2}$/.test(str))return hoursIfShort?+str*60:+str;
+  var m=/^(\d{1,2})[:.,](\d{1,2})$/.exec(str);
+  if(m&&+m[2]<60)return +m[1]*60+ +m[2];
+  if(/^\d{3,4}$/.test(str)&&+str.slice(-2)<60)return +str.slice(0,-2)*60+ +str.slice(-2);
+  return NaN;
+}
+function pad(n){return (n<10?"0":"")+n;}
+function clock(min){return pad(Math.floor(min/60))+":"+pad(min%60);}
+function dur(min){var a=Math.abs(min);return Math.floor(a/60)+":"+pad(a%60);}
+function dec(min){return (Math.round(min/60*100)/100).toFixed(2).replace(".",",")+" h";}
+function sgn(min,txt){return (min>0?"+":min<0?"−":"")+txt;}
+
+/* ---------- Berechnung ---------- */
+function calc(){
+  var s=st.set,v=st[day],mt=day==="mt";
+  var arbeit=mt?s.arbeitMT:s.arbeitFR, soll=arbeit+s.einarbeit;
+  var r={soll:soll,ok:false};
+  if(v.kommt==null)return r;
+  var stamped=mt&&v.gm!=null&&v.km!=null&&v.km>=v.gm;
+  var mittag=mt?(stamped?Math.max(v.km-v.gm,s.mittag):s.mittag):0;
+  var gz=v.kommt+arbeit+s.einarbeit+s.pause+mittag;
+  var now=new Date().getHours()*60+new Date().getMinutes();
+  var geht,abz=mittag,live=v.gw==null,onlyGM=false;
+  if(!live){geht=v.gw;}
+  else{
+    geht=now;
+    if(mt&&v.gm!=null&&v.km==null){onlyGM=true;geht=v.gm;abz=0;}      // Istzeit bleibt stehen
+    else if(mt&&!stamped){abz=now>=gz?s.mittag:0;}                      // Mittag erst ab Geht-Zeit
+  }
+  var ist=Math.max(0,geht-v.kommt-abz-s.pause);
+  r.ok=true;r.gz=gz;r.mittag=mittag;r.stamped=stamped;r.ist=ist;r.live=live;r.arbeit=arbeit;
+  if(live){
+    var diff=now-gz;
+    if(diff<0||onlyGM){r.ueLbl="Noch bis Geht-Zeit";r.ue=gz-now;r.countdown=true;}
+    else{r.ueLbl="Überzeit bis jetzt";r.ue=diff;}
+    r.istLbl="Istzeit bis jetzt";
+  }else{r.ueLbl="Überzeit";r.ue=v.gw-gz;r.istLbl="Istzeit";}
+  return r;
+}
+
+/* ---------- Anzeige ---------- */
+var $=function(id){return document.getElementById(id);};
+function render(){
+  document.body.dataset.day=day;
+  Array.prototype.forEach.call(document.querySelectorAll(".seg button"),function(b){b.setAttribute("aria-pressed",b.dataset.d===day);});
+  $("exnote").classList.toggle("on",!!st.example);
+  var r=calc(),s=st.set;
+  $("soll").textContent=dec(r.soll);
+  if(!r.ok){
+    $("gehtZeit").textContent="--:--";$("way").textContent="Kommt eintragen";
+    $("ist").textContent="–";$("istLbl").textContent="Istzeit";
+    $("ueMin").textContent="–";$("ueH").textContent="–";$("ueMin").className=$("ueH").className="mid";
+    $("ueLbl").textContent="Überzeit";$("bar").style.width="0";return;
+  }
+  $("gehtZeit").textContent=clock(r.gz%1440);
+  var w=clock(st[day].kommt)+" + "+dur(r.arbeit)+" + "+dur(s.einarbeit)+" + "+dur(s.pause);
+  if(day==="mt")w+=" + "+dur(r.mittag)+(r.stamped?"":" (Mittag Standard)");
+  $("way").textContent="Kommt + Arbeit + Einarbeit + Pause"+(day==="mt"?" + Mittag":"")+" → "+w;
+  $("istLbl").textContent=r.istLbl;
+  $("ist").textContent=dec(r.ist);
+  $("bar").style.width=Math.min(100,r.ist/r.soll*100)+"%";
+  $("ueLbl").textContent=r.ueLbl;
+  var cls=r.countdown?"mid":"mid "+(r.ue>0?"pos":r.ue<0?"neg":"");
+  $("ueMin").className=$("ueH").className=cls;
+  if(r.countdown){$("ueMin").textContent=r.ue+" min";$("ueH").textContent=dec(r.ue);}
+  else{$("ueMin").textContent=sgn(r.ue,Math.abs(r.ue)+" min");$("ueH").textContent=sgn(r.ue,dec(Math.abs(r.ue)));}
+}
+
+/* ---------- Felder ---------- */
+function buildFields(){
+  var box=$("fields");box.innerHTML="";
+  FIELDS[day].forEach(function(f){
+    var d=document.createElement("div");d.className="field";
+    var id="f_"+f[0];
+    d.innerHTML='<label for="'+id+'">'+f[1]+'</label><input class="t" id="'+id+'" data-k="'+f[0]+'" type="text" inputmode="numeric" autocomplete="off" placeholder="--:--">';
+    box.appendChild(d);
+    var inp=d.firstChild.nextSibling;
+    var val=st[day][f[0]];
+    inp.value=val==null?"":clock(val);
+    if(st.example&&val!=null)inp.classList.add("ex");
+    inp.addEventListener("focus",function(){inp.select();});
+    inp.addEventListener("input",function(){onInput(inp,f[0]);});
+    inp.addEventListener("blur",function(){commit(inp,f[0],false);});
+    inp.addEventListener("keydown",function(e){if(e.key==="Enter")commit(inp,f[0],true);});
+  });
+}
+function commit(inp,k,advance){
+  var p=parse(inp.value);
+  inp.classList.toggle("bad",p!==p); // NaN
+  if(p!==p){return false;}
+  var old=st[day][k];
+  st[day][k]=p;
+  inp.value=p==null?"":clock(p);
+  if(p!==old&&st.example){st.example=false;Array.prototype.forEach.call(document.querySelectorAll("input.t"),function(i){i.classList.remove("ex");});}
+  save();render();
+  return true;
+}
+function onInput(inp,k){
+  var digits=inp.value.replace(/\D/g,"");
+  if(st.example){inp.classList.remove("ex");}
+  var p=parse(inp.value);
+  inp.classList.toggle("bad",p!==p&&inp.value.length>=4);
+  if(digits.length===4&&/^\d{4}$|^\d{1,2}[:.,]\d{2}$/.test(inp.value.trim())&&p===p&&p!==null){
+    commit(inp,k,true);
+    var all=Array.prototype.slice.call(document.querySelectorAll("input.t"));
+    var nx=all[all.indexOf(inp)+1];if(nx)nx.focus();
+  }else if(p===p){ // Live-Vorschau ohne Formatieren
+    st[day][k]=p;render();
+  }
+}
+
+/* ---------- Einstellungen ---------- */
+function buildSettings(){
+  var box=$("settings");box.innerHTML="";
+  SETS.forEach(function(x){
+    var d=document.createElement("div");d.className="field";
+    d.innerHTML='<label>'+x[1]+'</label><input class="t" type="text" inputmode="numeric" autocomplete="off">';
+    var inp=d.lastChild;inp.value=dur(st.set[x[0]]);
+    inp.addEventListener("blur",function(){
+      var p=parseDur(inp.value,x[0].indexOf("arbeit")===0);
+      if(p===null||p!==p){inp.value=dur(st.set[x[0]]);inp.classList.toggle("bad",p!==p);return;}
+      inp.classList.remove("bad");
+      st.set[x[0]]=p;inp.value=dur(p);save();render();
+    });
+    inp.addEventListener("focus",function(){inp.select();});
+    box.appendChild(d);
+  });
+}
+
+/* ---------- Events ---------- */
+Array.prototype.forEach.call(document.querySelectorAll(".seg button"),function(b){
+  b.addEventListener("click",function(){day=b.dataset.d;buildFields();render();});
+});
+$("clearDay").addEventListener("click",function(){
+  FIELDS[day].forEach(function(f){st[day][f[0]]=null;});
+  st.example=false;save();buildFields();render();
+});
+$("exClear").addEventListener("click",function(e){
+  e.preventDefault();
+  st.mt={kommt:null,gm:null,km:null,gw:null};st.fr={kommt:null,gw:null};st.example=false;
+  save();buildFields();render();
+});
+$("defaults").addEventListener("click",function(){st.set=clone(DEFAULTS);save();buildSettings();render();});
+function applyTheme(){
+  var t=st.theme||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");
+  document.documentElement.dataset.theme=t;
+}
+$("themeBtn").addEventListener("click",function(){
+  st.theme=document.documentElement.dataset.theme==="dark"?"light":"dark";
+  save();applyTheme();
+});
+applyTheme();buildFields();buildSettings();render();
+setInterval(render,15000);
+})();
+</script>
+</body>
+</html>
